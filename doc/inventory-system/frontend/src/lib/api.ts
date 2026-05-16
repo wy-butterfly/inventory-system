@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types';
 
 // 创建 Axios 实例
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
