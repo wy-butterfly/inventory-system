@@ -1,0 +1,38 @@
+server:
+  port: 8080
+  mode: debug
+
+database:
+  host: localhost
+  port: 3306
+  name: inventory_db
+  user: root
+  password: "${DATABASE_PASSWORD}"
+  max_open_conns: 100
+  max_idle_conns: 10
+
+jwt:
+  secret: "${JWT_SECRET}"
+  expire_hours: 24
+
+upload:
+  max_size: 20971520
+  allowed_image_ext:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".webp"
+  allowed_file_ext:
+    - ".pdf"
+    - ".doc"
+    - ".docx"
+    - ".xls"
+    - ".xlsx"
+    - ".txt"
+  storage_path: "./uploads"
+  thumbnail_width: 200
+
+log:
+  level: info
+  output: console
+  path: "./logs"

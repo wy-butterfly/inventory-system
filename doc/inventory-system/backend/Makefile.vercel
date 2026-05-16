@@ -1,0 +1,59 @@
+# Vercel 部署 Makefile
+.PHONY: build deploy clean
+
+# 构建 Go 程序
+build:
+	@echo "🔨 Building Go server for Vercel..."
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o go-server main.go
+	@echo "✅ Build completed"
+
+# 本地测试
+test-local:
+	@echo "🧪 Testing locally..."
+	export SUPABASE_HOST=localhost \
+	SUPABASE_PORT=5432 \
+	SUPABASE_USER=postgres \
+	SUPABASE_PASSWORD=password \
+	SUPABASE_DB_NAME=postgres \
+	SUPABASE_JWT_SECRET=your-jwt-secret \
+	OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com \
+	OSS_ACCESS_KEY_ID=your-access-key \
+	OSS_ACCESS_KEY_SECRET=your-secret \
+	OSS_BUCKET_NAME=your-bucket \
+	OSS_BUCKET_DOMAIN=https://your-bucket.oss-cn-hangzhou.aliyuncs.com \
+	&& go run main.go
+
+# 部署到 Vercel
+deploy: build
+	@echo "🚀 Deploying to Vercel..."
+	vercel --prod
+
+# 清理构建文件
+clean:
+	@echo "🧹 Cleaning up..."
+	rm -f go-server
+	@echo "✅ Clean completed"
+
+# 安装依赖
+deps:
+	@echo "📦 Installing dependencies..."
+	go mod tidy
+	go mod download
+	@echo "✅ Dependencies installed"
+
+# 运行测试
+test:
+	@echo "🧪 Running tests..."
+	go test ./...
+
+# 格式化代码
+fmt:
+	@echo "🎨 Formatting code..."
+	go fmt ./...
+	@echo "✅ Code formatted"
+
+# 代码检查
+lint:
+	@echo "🔍 Linting code..."
+	golangci-lint run
+	@echo "✅ Linting completed"
