@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -75,8 +76,16 @@ func Load(path string) error {
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("log.output", "console")
 
+	// 启用环境变量自动映射，如 server.port -> SERVER_PORT
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// 尝试读取配置文件，不存在时仅使用默认值和环境变量
 	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("读取配置文件失败: %w", err)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return fmt.Errorf("读取配置文件失败: %w", err)
+		}
+		fmt.Println("⚠️ 未找到配置文件，将使用默认值和环境变量")
 	}
 
 	GlobalConfig = &Config{}

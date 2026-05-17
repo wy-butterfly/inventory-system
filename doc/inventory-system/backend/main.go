@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"inventory-system/config"
@@ -33,6 +34,11 @@ func main() {
 
 	// 4. 启动HTTP服务器
 	port := config.GlobalConfig.Server.Port
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil {
+			port = p
+		}
+	}
 	fmt.Printf("🚀 服务器启动成功，监听端口: %d\n", port)
 	fmt.Printf("   API地址: http://localhost:%d/api/v1\n", port)
 	fmt.Printf("   健康检查: http://localhost:%d/api/health\n", port)
