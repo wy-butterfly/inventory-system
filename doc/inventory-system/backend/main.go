@@ -24,9 +24,19 @@ func main() {
 	// 2. 初始化数据库连接
 	fmt.Println("⏳ 正在连接数据库...")
 	if os.Getenv("SUPABASE_HOST") != "" {
-		// 使用 PostgreSQL (Supabase)
-		database.DB = database.InitPostgres()
-		fmt.Println("✅ PostgreSQL 数据库连接成功")
+		// 尝试使用 PostgreSQL (Supabase)
+		pgDB, err := database.InitPostgres()
+		if err != nil {
+			fmt.Printf("⚠️ Supabase 连接失败: %v\n", err)
+			fmt.Println("⏳ 正在回退到 MySQL...")
+			if err := database.Init(); err != nil {
+				fmt.Printf("❌ MySQL 数据库连接也失败: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			database.DB = pgDB
+			fmt.Println("✅ PostgreSQL (Supabase) 数据库连接成功")
+		}
 	} else {
 		// 使用 MySQL (本地开发)
 		if err := database.Init(); err != nil {

@@ -2,8 +2,8 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -12,17 +12,17 @@ import (
 )
 
 // InitPostgres 初始化 PostgreSQL 连接 (Supabase)
-func InitPostgres() *gorm.DB {
-	// 从环境变量获取数据库配置
-	host := getEnv("SUPABASE_HOST", "")
-	port := getEnv("SUPABASE_PORT", "5432")
-	user := getEnv("SUPABASE_USER", "")
-	password := getEnv("SUPABASE_PASSWORD", "")
-	dbname := getEnv("SUPABASE_DB_NAME", "")
-	sslmode := getEnv("SUPABASE_SSLMODE", "require")
+func InitPostgres() (*gorm.DB, error) {
+	// 从环境变量获取数据库配置，并去除前后空白字符
+	host := strings.TrimSpace(getEnv("SUPABASE_HOST", ""))
+	port := strings.TrimSpace(getEnv("SUPABASE_PORT", "5432"))
+	user := strings.TrimSpace(getEnv("SUPABASE_USER", ""))
+	password := strings.TrimSpace(getEnv("SUPABASE_PASSWORD", ""))
+	dbname := strings.TrimSpace(getEnv("SUPABASE_DB_NAME", ""))
+	sslmode := strings.TrimSpace(getEnv("SUPABASE_SSLMODE", "require"))
 
 	if host == "" || user == "" || password == "" || dbname == "" {
-		log.Fatal("Missing required database environment variables")
+		return nil, fmt.Errorf("missing required database environment variables (SUPABASE_HOST, SUPABASE_USER, SUPABASE_PASSWORD, SUPABASE_DB_NAME)")
 	}
 
 	// 构建 DSN
@@ -40,13 +40,13 @@ func InitPostgres() *gorm.DB {
 	// 连接数据库
 	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to connect to PostgreSQL (host=%s): %w", host, err)
 	}
 
 	// 获取底层的 *sql.DB 对象进行连接池配置
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatalf("Failed to get database instance: %v", err)
+		return nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
 	// 设置连接池参数
@@ -54,8 +54,7 @@ func InitPostgres() *gorm.DB {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	log.Println("✅ PostgreSQL (Supabase) connected successfully")
-	return db
+	return db, nil
 }
 
 // getEnv 获取环境变量，如果不存在则返回默认值
