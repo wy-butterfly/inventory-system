@@ -68,9 +68,15 @@ func InitPostgres() (*gorm.DB, error) {
 		},
 	}
 
+	// Transaction pooler (port 6543) 不支持 prepared statements，需使用 simple protocol
+	connConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
 	// 使用自定义 pgx 配置打开连接
 	sqlDB := stdlib.OpenDB(*connConfig)
-	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), gormConfig)
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn:                 sqlDB,
+		PreferSimpleProtocol: true,
+	}), gormConfig)
 	if err != nil {
 		sqlDB.Close()
 		return nil, fmt.Errorf("failed to connect to PostgreSQL (host=%s): %w", host, err)
