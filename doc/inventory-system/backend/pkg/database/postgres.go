@@ -1,11 +1,15 @@
 package database
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -26,8 +30,35 @@ func InitPostgres() (*gorm.DB, error) {
 	}
 
 	// 构建 DSN
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai connect_timeout=10",
 		host, port, user, password, dbname, sslmode)
+
+	// 解析 pgx 配置
+	connConfig, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PostgreSQL DSN: %w", err)
+	}
+
+	// 强制优先使用 IPv4，避免 Render 等平台因 IPv6 不可达导致连接失败
+	connConfig.LookupFunc = func(ctx context.Context, h string) ([]string, error) {
+		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, h)
+		if err != nil {
+			return nil, err
+		}
+		ipv4 := make([]string, 0, len(addrs))
+		ipv6 := make([]string, 0, len(addrs))
+		for _, a := range addrs {
+			if a.IP.To4() != nil {
+				ipv4 = append(ipv4, a.IP.String())
+			} else {
+				ipv6 = append(ipv6, a.IP.String())
+			}
+		}
+		if len(ipv4) > 0 {
+			return ipv4, nil
+		}
+		return ipv6, nil
+	}
 
 	// GORM 配置
 	gormConfig := &gorm.Config{
@@ -37,22 +68,23 @@ func InitPostgres() (*gorm.DB, error) {
 		},
 	}
 
-	// 连接数据库
-	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
+	// 使用自定义 pgx 配置打开连接
+	sqlDB := stdlib.OpenDB(*connConfig)
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), gormConfig)
 	if err != nil {
+		sqlDB.Close()
 		return nil, fmt.Errorf("failed to connect to PostgreSQL (host=%s): %w", host, err)
 	}
 
-	// 获取底层的 *sql.DB 对象进行连接池配置
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database instance: %w", err)
-	}
-
-	// 设置连接池参数
+	// 设置连接池参数并验证连通性
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	if err := sqlDB.Ping(); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("failed to connect to PostgreSQL (host=%s): %w", host, err)
+	}
 
 	return db, nil
 }

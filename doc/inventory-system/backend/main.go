@@ -28,9 +28,15 @@ func main() {
 		pgDB, err := database.InitPostgres()
 		if err != nil {
 			fmt.Printf("⚠️ Supabase 连接失败: %v\n", err)
-			fmt.Println("⏳ 正在回退到 MySQL...")
-			if err := database.Init(); err != nil {
-				fmt.Printf("❌ MySQL 数据库连接也失败: %v\n", err)
+			// 仅在 MySQL 已配置时才回退，否则直接退出
+			if config.GlobalConfig.Database.Host != "" {
+				fmt.Println("⏳ 正在回退到 MySQL...")
+				if err := database.Init(); err != nil {
+					fmt.Printf("❌ MySQL 数据库连接也失败: %v\n", err)
+					os.Exit(1)
+				}
+			} else {
+				fmt.Println("❌ Supabase 连接失败且未配置 MySQL (DATABASE_HOST 为空)，请检查 SUPABASE_* 环境变量")
 				os.Exit(1)
 			}
 		} else {
