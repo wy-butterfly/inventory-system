@@ -27,6 +27,9 @@ api.interceptors.request.use(
 // 响应拦截器：统一处理错误
 api.interceptors.response.use(
   (response) => {
+    if (response.data instanceof Blob) {
+      return response;
+    }
     const data = response.data as ApiResponse;
     // 业务错误（code != 0）
     if (data.code !== 0) {
